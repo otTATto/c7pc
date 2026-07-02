@@ -30,6 +30,16 @@
   font-weight: 900;
 }
 
+@keyframes fadeout {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
 @theme {
   --font-mplus-rounded: 'M PLUS Rounded 1c', sans-serif;
   --font-zen-kaku: 'Zen Kaku Gothic New', sans-serif;
