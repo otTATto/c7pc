@@ -1,1 +1,56 @@
 @import 'tailwindcss';
+
+@font-face {
+  font-family: 'M PLUS Rounded 1c';
+  src: url('./assets/font/MPLUSRounded1c-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'M PLUS Rounded 1c';
+  src: url('./assets/font/MPLUSRounded1c-Black.ttf') format('truetype');
+  font-weight: 900;
+}
+
+@font-face {
+  font-family: 'Zen Kaku Gothic New';
+  src: url('./assets/font/ZenKakuGothicNew-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Zen Maru Gothic';
+  src: url('./assets/font/ZenMaruGothic-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Zen Maru Gothic';
+  src: url('./assets/font/ZenMaruGothic-Black.ttf') format('truetype');
+  font-weight: 900;
+}
+
+@keyframes fadeout {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@theme {
+  --font-mplus-rounded: 'M PLUS Rounded 1c', sans-serif;
+  --font-zen-kaku: 'Zen Kaku Gothic New', sans-serif;
+  --font-zen-maru: 'Zen Maru Gothic', serif;
+  --color-water: rgb(85 154 215);
+  --color-blue: rgb(68 112 158);
+  --color-sub-blue: rgb(119 149 187);
+  --color-sub-greige: rgb(203 192 189 / 52.2%);
+  --color-moca: rgb(138 121 112);
+  --color-yello: rgb(235 195 140);
+  --color-sub-yello: rgb(191 135 58);
+  --color-salmon: salmon;
+  --color-stop-red: rgb(250 114 114);
+}
