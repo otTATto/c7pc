@@ -1,0 +1,10 @@
+# 改行コードを LF に統一(oxfmt が LF 前提のため)
+* text=auto eol=lf
+
+# バイナリファイル
+*.ttf binary
+*.otf binary
+*.webp binary
+*.png binary
+*.ico binary
+*.icns binary
