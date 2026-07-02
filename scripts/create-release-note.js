@@ -15,12 +15,14 @@
  *   bun run release:note v0.2.0
  *   → docs/releases/v0.2.0.md を生成
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const version = process.argv[2]
-if (!version || version.includes('/') || version.includes('\\')) {
+const semverRegex = /^v?\d+\.\d+\.\d+(?:-[\w.-]+)?$/
+if (!version || !semverRegex.test(version)) {
+  console.error('Error: Invalid version format. Must be like v1.0.0 or 0.1.0-beta.1')
   console.error('Usage: bun scripts/create-release-note.js <version>')
   console.error('Example: bun scripts/create-release-note.js v0.1.0')
   process.exit(1)
