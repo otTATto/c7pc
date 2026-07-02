@@ -31,6 +31,7 @@ function stopTimer() {
     clearInterval(intervalId);
     intervalId = undefined;
   }
+  updateDisplay();
   emit('stop', timeText.value);
 }
 
