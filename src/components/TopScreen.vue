@@ -27,12 +27,16 @@ function handleKeydown(e: KeyboardEvent) {
 async function toggleFullscreen(e: MouseEvent) {
   // e.currentTarget はイベントディスパッチ終了後(= await 後)は null になるため先に退避する
   const button = e.currentTarget as HTMLButtonElement | null;
-  const appWindow = getCurrentWindow();
-  const next = !isFullscreen.value;
-  await appWindow.setFullscreen(next);
-  isFullscreen.value = next;
-  // フォーカスを外し、直後の Space キーがトグルではなくゲーム開始として働くようにする
-  button?.blur();
+  try {
+    const next = !isFullscreen.value;
+    await getCurrentWindow().setFullscreen(next);
+    isFullscreen.value = next;
+  } catch (err) {
+    console.error('Failed to toggle fullscreen:', err);
+  } finally {
+    // フォーカスを外し、直後の Space キーがトグルではなくゲーム開始として働くようにする
+    button?.blur();
+  }
 }
 
 onMounted(async () => {
