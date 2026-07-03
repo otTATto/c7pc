@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { CirclePlay, Star } from 'lucide-vue-next';
-import { onMounted, onUnmounted } from 'vue';
+import { isTauri } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { CirclePlay, Maximize, Minimize, Star } from 'lucide-vue-next';
+import { onMounted, onUnmounted, ref } from 'vue';
 import logo from '../assets/img/logo.webp';
 import pressSpaceKey from '../assets/img/press-space-key.webp';
 
 const emit = defineEmits<{
   start: [];
 }>();
+
+const showFullscreenToggle = ref(false);
+const isFullscreen = ref(false);
 
 function start() {
   emit('start');
@@ -19,8 +24,21 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
+async function toggleFullscreen(e: MouseEvent) {
+  const appWindow = getCurrentWindow();
+  const next = !isFullscreen.value;
+  await appWindow.setFullscreen(next);
+  isFullscreen.value = next;
+  (e.currentTarget as HTMLButtonElement | null)?.blur();
+}
+
+onMounted(async () => {
   window.addEventListener('keydown', handleKeydown);
+
+  if (isTauri()) {
+    showFullscreenToggle.value = true;
+    isFullscreen.value = await getCurrentWindow().isFullscreen();
+  }
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
@@ -29,6 +47,18 @@ onUnmounted(() => {
 
 <template>
   <div class="flex min-h-screen flex-col items-center justify-center -mt-10 pb-16">
+    <button
+      v-if="showFullscreenToggle"
+      type="button"
+      :title="isFullscreen ? 'ウィンドウ表示' : '全画面表示'"
+      class="fixed top-4 right-4 inline-flex items-center gap-2 rounded-full bg-gray-200 px-3 py-1.5 text-xs font-bold text-gray-500 transition-colors duration-200 hover:bg-gray-300"
+      @click="toggleFullscreen"
+    >
+      <Minimize v-if="isFullscreen" class="size-4" />
+      <Maximize v-else class="size-4" />
+      <span>{{ isFullscreen ? 'ウィンドウ表示' : '全画面表示' }}</span>
+    </button>
+
     <img :src="logo" width="500" alt="7CHAL" />
 
     <div class="mt-20 flex w-full max-w-3xl items-center justify-center px-4">
