@@ -31,7 +31,7 @@ onUnmounted(() => {
   <div class="flex min-h-screen flex-col items-center justify-center -mt-10 pb-16">
     <img :src="logo" width="500" alt="7CHAL" />
 
-    <div class="flex justify-center items-center mt-20 w-3xl px-4">
+    <div class="mt-20 flex w-full max-w-3xl items-center justify-center px-4">
       <div class="font-zen-kaku font-bold text-gray-500">
         <p>
           <Star class="text-yello inline-block size-5 align-middle mx-1 -translate-y-[3px]" />
