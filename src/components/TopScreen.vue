@@ -28,8 +28,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col items-center pb-16">
-    <img :src="logo" width="500" class="mt-24" alt="7CHAL" />
+  <div class="flex min-h-screen flex-col items-center justify-center -mt-10 pb-16">
+    <img :src="logo" width="500" alt="7CHAL" />
 
     <div class="flex justify-center items-center mt-20 w-3xl px-4">
       <div class="font-zen-kaku font-bold text-gray-500">

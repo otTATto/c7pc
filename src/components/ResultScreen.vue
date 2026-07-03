@@ -55,7 +55,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col items-center px-4 pt-36">
+  <div class="flex min-h-screen flex-col items-center justify-center px-4 -mt-5">
     <div class="font-zen-kaku text-center font-bold text-gray-500">結果は…</div>
 
     <div class="font-mplus-rounded text-sub-blue mt-3 text-center text-3xl font-bold">
