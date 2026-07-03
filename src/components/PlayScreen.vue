@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { CircleStop } from 'lucide-vue-next';
 import { onMounted, onUnmounted, ref } from 'vue';
 
@@ -11,6 +12,7 @@ const timeText = ref('00.000');
 let startTime = 0;
 let intervalId: ReturnType<typeof setInterval> | undefined;
 let stopped = false;
+const useTauriTimer = isTauri();
 
 function formatTime(elapsedMs: number): string {
   const totalMs = Math.max(0, Math.floor(elapsedMs));
@@ -24,6 +26,12 @@ function updateDisplay() {
   timeText.value = formatTime(performance.now() - startTime);
 }
 
+async function updateDisplayFromBackend() {
+  const elapsedMs = await invoke<number>('get_elapsed_ms');
+  if (stopped) return;
+  timeText.value = formatTime(elapsedMs);
+}
+
 function stopTimer() {
   if (stopped) return;
   stopped = true;
@@ -31,8 +39,15 @@ function stopTimer() {
     clearInterval(intervalId);
     intervalId = undefined;
   }
-  updateDisplay();
-  emit('stop', timeText.value);
+
+  if (useTauriTimer) {
+    invoke<number>('stop_timer').then((elapsedMs) => {
+      emit('stop', formatTime(elapsedMs));
+    });
+  } else {
+    updateDisplay();
+    emit('stop', timeText.value);
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -43,9 +58,16 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
-  startTime = performance.now();
-  updateDisplay();
-  intervalId = setInterval(updateDisplay, 10);
+  if (useTauriTimer) {
+    invoke('start_timer').then(() => {
+      if (stopped) return;
+      intervalId = setInterval(updateDisplayFromBackend, 10);
+    });
+  } else {
+    startTime = performance.now();
+    updateDisplay();
+    intervalId = setInterval(updateDisplay, 10);
+  }
   window.addEventListener('keydown', handleKeydown);
 });
 
