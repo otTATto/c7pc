@@ -26,10 +26,20 @@ function updateDisplay() {
   timeText.value = formatTime(performance.now() - startTime);
 }
 
+// IPC が更新間隔(10ms)を超えた場合に invoke が重複し、応答順の逆転で表示が
+// 巻き戻るのを防ぐためのロック
+let isUpdating = false;
+
 async function updateDisplayFromBackend() {
-  const elapsedMs = await invoke<number>('get_elapsed_ms');
-  if (stopped) return;
-  timeText.value = formatTime(elapsedMs);
+  if (isUpdating) return;
+  isUpdating = true;
+  try {
+    const elapsedMs = await invoke<number>('get_elapsed_ms');
+    if (stopped) return;
+    timeText.value = formatTime(elapsedMs);
+  } finally {
+    isUpdating = false;
+  }
 }
 
 function stopTimer() {
@@ -72,6 +82,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  // start_timer の解決前にアンマウントされた場合でも setInterval が起動しないようにする
+  stopped = true;
   if (intervalId !== undefined) {
     clearInterval(intervalId);
   }
