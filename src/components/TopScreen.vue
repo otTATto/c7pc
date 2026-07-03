@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { CirclePlay, Star } from 'lucide-vue-next';
 import { onMounted, onUnmounted } from 'vue';
-import pressSpaceKey from '../assets/img/PressSpaceKey.webp';
 import logo from '../assets/img/logo.webp';
+import pressSpaceKey from '../assets/img/press-space-key.webp';
 
 const emit = defineEmits<{
   start: [];
