@@ -2,9 +2,11 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { CircleStop } from 'lucide-vue-next';
 import { onMounted, onUnmounted, ref } from 'vue';
+import { saveLocalResult } from '../lib/local-ranking';
+import { formatTime } from '../lib/time';
 
 const emit = defineEmits<{
-  stop: [time: string];
+  stop: [elapsedMs: number, resultId: number | null];
 }>();
 
 const timeText = ref('00.000');
@@ -13,14 +15,6 @@ let startTime = 0;
 let intervalId: ReturnType<typeof setInterval> | undefined;
 let stopped = false;
 const useTauriTimer = isTauri();
-
-function formatTime(elapsedMs: number): string {
-  const totalMs = Math.max(0, Math.floor(elapsedMs));
-  const totalSeconds = Math.floor(totalMs / 1000);
-  const s = String(totalSeconds % 60).padStart(2, '0');
-  const ms = String(totalMs % 1000).padStart(3, '0');
-  return `${s}.${ms}`;
-}
 
 function updateDisplay() {
   timeText.value = formatTime(performance.now() - startTime);
@@ -51,12 +45,22 @@ function stopTimer() {
   }
 
   if (useTauriTimer) {
-    invoke<number>('stop_timer').then((elapsedMs) => {
-      emit('stop', formatTime(elapsedMs));
+    invoke<number>('stop_timer').then(async (elapsedMs) => {
+      timeText.value = formatTime(elapsedMs);
+      try {
+        const resultId = await invoke<number>('save_result', { stoppedMs: elapsedMs });
+        emit('stop', elapsedMs, resultId);
+      } catch (err) {
+        console.error('Failed to save result:', err);
+        emit('stop', elapsedMs, null);
+      }
     });
   } else {
     updateDisplay();
-    emit('stop', timeText.value);
+    // 保存値と表示値の丸めを揃えるため、floor したミリ秒に一本化する
+    const elapsedMs = Math.max(0, Math.floor(performance.now() - startTime));
+    const resultId = saveLocalResult(elapsedMs);
+    emit('stop', elapsedMs, resultId);
   }
 }
 
