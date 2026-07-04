@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { Frown, Laugh, Meh } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted } from 'vue';
+import { diffSeconds, formatDiff, formatTime } from '../lib/time';
 
 const props = defineProps<{
-  time: string;
+  resultMs: number;
 }>();
 
 const emit = defineEmits<{
-  restart: [];
+  viewRanking: [];
 }>();
 
-const CORRECT_TIME = 7.777;
+const timeText = computed(() => formatTime(props.resultMs));
 
-const distance = computed(() => Math.round((parseFloat(props.time) - CORRECT_TIME) * 1000) / 1000);
+const distance = computed(() => diffSeconds(props.resultMs));
 
 type MessageKind = 'bad' | 'good' | 'okay';
 
@@ -30,19 +31,16 @@ const distanceColorClass = computed(() => {
   return 'text-sub-yello';
 });
 
-const distanceText = computed(() => {
-  const d = distance.value;
-  return d > 0.1 ? `+${d}` : `${d}`;
-});
+const distanceText = computed(() => formatDiff(distance.value));
 
-function restart() {
-  emit('restart');
+function viewRanking() {
+  emit('viewRanking');
 }
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.code === 'Space' && !e.repeat) {
     e.preventDefault();
-    restart();
+    viewRanking();
   }
 }
 
@@ -59,7 +57,7 @@ onUnmounted(() => {
     <div class="font-zen-kaku text-center font-bold text-gray-500">結果は…</div>
 
     <div class="font-mplus-rounded text-sub-blue mt-3 text-center text-3xl font-bold">
-      <span class="text-water text-[50px] font-black">{{ time }}</span>
+      <span class="text-water text-[50px] font-black">{{ timeText }}</span>
       秒
     </div>
 
@@ -81,12 +79,12 @@ onUnmounted(() => {
     </div>
 
     <button
-      id="back2start-btn"
+      id="view-ranking-btn"
       type="button"
       class="bg-sub-blue mt-24 rounded-[30px] px-16 py-6 transition-transform duration-300 hover:scale-95"
-      @click="restart"
+      @click="viewRanking"
     >
-      <span class="font-zen-kaku text-2xl font-bold text-white">はじめにもどる</span>
+      <span class="font-zen-kaku text-2xl font-bold text-white">今日のランキングを見に行く</span>
     </button>
   </div>
 </template>
