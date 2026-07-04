@@ -15,9 +15,9 @@
         "label": "main",
         "title": "7CHAL",
         "width": 1000,
-        "height": 900,
-        "minWidth": 800,
-        "minHeight": 900,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 800,
         "fullscreen": true
       }
     ],
