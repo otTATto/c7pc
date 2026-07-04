@@ -17,6 +17,19 @@ const loading = ref(true);
 const errorMessage = ref('');
 const ranking = ref<RankingData | null>(null);
 
+// 演出フェーズ: トップ3のときだけ 'burst'（噴水演出）から始まり、
+// 一定時間後に 'table'（従来のランキング表示）へ切り替わる
+const phase = ref<'burst' | 'table'>('table');
+const BURST_DURATION_MS = 1800;
+let burstTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearBurstTimer() {
+  if (burstTimer !== null) {
+    clearTimeout(burstTimer);
+    burstTimer = null;
+  }
+}
+
 type Row = { kind: 'entry'; entry: RankingEntry } | { kind: 'ellipsis'; key: 'upper' | 'lower' };
 
 // 表示行を組み立てる:
@@ -73,6 +86,21 @@ function rankColorClass(entry: RankingEntry): string {
   }
 }
 
+// バースト演出中の「おめでとう！」文字色。順位に応じて金・銀・銅にする
+const congratsColorClass = computed(() => {
+  const rank = ranking.value?.mine.rank;
+  switch (rank) {
+    case 1:
+      return 'text-medal-gold';
+    case 2:
+      return 'text-medal-silver';
+    case 3:
+      return 'text-medal-bronze';
+    default:
+      return 'text-medal-gold';
+  }
+});
+
 function diffText(stoppedMs: number): string {
   return formatDiff(diffSeconds(stoppedMs));
 }
@@ -102,6 +130,35 @@ const confettiPieces = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
+// バースト演出用の紙吹雪。画面下中央から扇状（-30°〜-150°、真上が -90°）に打ち上げ、
+// 重力で減速して頂点に達したあと、画面外まで落下する軌道を CSS カスタムプロパティで表現する。
+// --dx: 横方向の最終到達位置（打ち上げ角度なりに左右へ流れる）
+// --peak-y: 上昇の頂点（負の値 = 上方向への移動量）
+// --fall-y: 最終的な落下位置（正の値 = 画面外まで落ちる）
+// --rot: 落下し終わるまでの総回転量
+const BURST_PIECE_COUNT = 36;
+const burstPieces = Array.from({ length: BURST_PIECE_COUNT }, (_, i) => {
+  // -30°(右寄り)〜-150°(左寄り) のランダムな打ち上げ角度
+  const angleDeg = -30 - Math.random() * 120;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  // 初速（vw 単位の飛距離目安）
+  const speed = 28 + Math.random() * 30;
+  const dx = Math.cos(angleRad) * speed;
+  const peakY = Math.sin(angleRad) * speed;
+  const fallY = 90 + Math.random() * 40;
+  return {
+    id: i,
+    color: colors[i % colors.length],
+    left: 46 + Math.random() * 8,
+    dx: Number(dx.toFixed(1)),
+    peakY: Number(peakY.toFixed(1)),
+    fallY: Number(fallY.toFixed(1)),
+    rotate: Math.round(360 + Math.random() * 720) * (Math.random() < 0.5 ? -1 : 1),
+    delay: Math.random() * 0.15,
+    duration: 1.1 + Math.random() * 0.5,
+  };
+});
+
 async function loadRanking() {
   loading.value = true;
   errorMessage.value = '';
@@ -116,9 +173,26 @@ async function loadRanking() {
     } else {
       ranking.value = getLocalTodayRanking(props.resultId);
     }
+
+    if (ranking.value.mine.rank <= 3) {
+      // トップ3が確定したときだけバーストを開始する。
+      // データ取得中にバーストを先行させると 4 位以下だった場合に演出を止められないため、
+      // 取得完了後にフェーズを切り替える。
+      phase.value = 'burst';
+      clearBurstTimer();
+      burstTimer = setTimeout(() => {
+        phase.value = 'table';
+        burstTimer = null;
+      }, BURST_DURATION_MS);
+    } else {
+      phase.value = 'table';
+    }
   } catch (err) {
     console.error('Failed to load ranking:', err);
     errorMessage.value = 'ランキングの取得に失敗しました';
+    // 取得失敗時はバーストを中断してエラー表示を出す
+    clearBurstTimer();
+    phase.value = 'table';
   } finally {
     loading.value = false;
   }
@@ -141,6 +215,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
+  clearBurstTimer();
 });
 </script>
 
@@ -148,7 +223,7 @@ onUnmounted(() => {
   <div
     class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-16"
   >
-    <template v-if="isTopThree">
+    <template v-if="isTopThree && phase === 'table'">
       <div
         v-for="piece in confettiPieces"
         :key="piece.id"
@@ -163,70 +238,99 @@ onUnmounted(() => {
       />
     </template>
 
-    <div class="font-zen-kaku text-center font-bold text-gray-500">今日のランキング</div>
-
-    <div v-if="loading" class="font-zen-maru text-moca mt-10 font-bold">読み込み中…</div>
-
-    <div v-else-if="errorMessage" class="mt-10 flex flex-col items-center gap-8">
-      <div class="font-zen-maru text-moca font-bold">{{ errorMessage }}</div>
-      <button
-        type="button"
-        class="bg-sub-blue rounded-[30px] px-16 py-6 transition-transform duration-300 hover:scale-95"
-        @click="restart"
-      >
-        <span class="font-zen-kaku text-2xl font-bold text-white">はじめにもどる</span>
-      </button>
-    </div>
-
-    <template v-else-if="ranking">
+    <Transition name="celebration-fade">
       <div
-        class="font-zen-maru text-moca mt-4 text-center text-sm font-bold"
-        data-testid="ranking-total"
+        v-if="phase === 'burst'"
+        class="bg-sub-greige pointer-events-none fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
       >
-        本日のプレイ数: {{ ranking.total }} 件
+        <div
+          v-for="piece in burstPieces"
+          :key="piece.id"
+          class="burst-piece pointer-events-none absolute bottom-[6%] size-3 rounded-sm"
+          :class="piece.color"
+          :style="{
+            left: `${piece.left}%`,
+            '--dx': `${piece.dx}vw`,
+            '--peak-y': `${piece.peakY}vh`,
+            '--fall-y': `${piece.fallY}vh`,
+            '--rot': `${piece.rotate}deg`,
+            animationDelay: `${piece.delay}s`,
+            animationDuration: `${piece.duration}s`,
+          }"
+        />
+
+        <div class="celebration-text-in font-mplus-rounded text-center font-black">
+          <span class="text-outline text-6xl" :class="congratsColorClass">おめでとう！</span>
+        </div>
+      </div>
+    </Transition>
+
+    <template v-if="phase === 'table'">
+      <div class="font-zen-kaku text-center font-bold text-gray-500">今日のランキング</div>
+
+      <div v-if="loading" class="font-zen-maru text-moca mt-10 font-bold">読み込み中…</div>
+
+      <div v-else-if="errorMessage" class="mt-10 flex flex-col items-center gap-8">
+        <div class="font-zen-maru text-moca font-bold">{{ errorMessage }}</div>
+        <button
+          type="button"
+          class="bg-sub-blue rounded-[30px] px-16 py-6 transition-transform duration-300 hover:scale-95"
+          @click="restart"
+        >
+          <span class="font-zen-kaku text-2xl font-bold text-white">はじめにもどる</span>
+        </button>
       </div>
 
-      <table class="font-mplus-rounded mt-8 w-full max-w-xl border-collapse">
-        <thead>
-          <tr class="border-b-moca/40 border-b-2">
-            <th class="text-moca px-3 py-2 text-left text-sm font-bold">順位</th>
-            <th class="text-moca px-3 py-2 text-right text-sm font-bold">タイム</th>
-            <th class="text-moca px-3 py-2 text-right text-sm font-bold">7.777秒との差</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template
-            v-for="row in rows"
-            :key="row.kind === 'entry' ? `entry-${row.entry.rank}` : row.key"
-          >
-            <tr v-if="row.kind === 'ellipsis'" class="border-b-moca/20 border-b">
-              <td colspan="3" class="text-moca/60 py-2 text-center tracking-widest">⋮</td>
-            </tr>
-            <tr
-              v-else
-              class="border-b-moca/20 border-b"
-              :class="row.entry.isMine ? 'bg-water/15 font-bold' : ''"
-            >
-              <td class="px-3 py-2 text-left font-black" :class="rankColorClass(row.entry)">
-                {{ row.entry.rank }}
-              </td>
-              <td class="px-3 py-2 text-right">{{ formatTime(row.entry.stoppedMs) }}秒</td>
-              <td class="px-3 py-2 text-right" :class="diffColorClass(row.entry.stoppedMs)">
-                {{ diffText(row.entry.stoppedMs) }}秒
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+      <template v-else-if="ranking">
+        <div
+          class="font-zen-maru text-moca mt-4 text-center text-sm font-bold"
+          data-testid="ranking-total"
+        >
+          本日のプレイ数: {{ ranking.total }} 件
+        </div>
 
-      <button
-        id="back2start-btn"
-        type="button"
-        class="bg-sub-blue mt-16 rounded-[30px] px-16 py-6 transition-transform duration-300 hover:scale-95"
-        @click="restart"
-      >
-        <span class="font-zen-kaku text-2xl font-bold text-white">はじめにもどる</span>
-      </button>
+        <table class="font-mplus-rounded mt-8 w-full max-w-xl border-collapse">
+          <thead>
+            <tr class="border-b-moca/40 border-b-2">
+              <th class="text-moca px-3 py-2 text-left text-sm font-bold">順位</th>
+              <th class="text-moca px-3 py-2 text-right text-sm font-bold">タイム</th>
+              <th class="text-moca px-3 py-2 text-right text-sm font-bold">7.777秒との差</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template
+              v-for="row in rows"
+              :key="row.kind === 'entry' ? `entry-${row.entry.rank}` : row.key"
+            >
+              <tr v-if="row.kind === 'ellipsis'" class="border-b-moca/20 border-b">
+                <td colspan="3" class="text-moca/60 py-2 text-center tracking-widest">⋮</td>
+              </tr>
+              <tr
+                v-else
+                class="border-b-moca/20 border-b"
+                :class="row.entry.isMine ? 'bg-water/15 font-bold' : ''"
+              >
+                <td class="px-3 py-2 text-left font-black" :class="rankColorClass(row.entry)">
+                  {{ row.entry.rank }}
+                </td>
+                <td class="px-3 py-2 text-right">{{ formatTime(row.entry.stoppedMs) }}秒</td>
+                <td class="px-3 py-2 text-right" :class="diffColorClass(row.entry.stoppedMs)">
+                  {{ diffText(row.entry.stoppedMs) }}秒
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+
+        <button
+          id="back2start-btn"
+          type="button"
+          class="bg-sub-blue mt-16 rounded-[30px] px-16 py-6 transition-transform duration-300 hover:scale-95"
+          @click="restart"
+        >
+          <span class="font-zen-kaku text-2xl font-bold text-white">はじめにもどる</span>
+        </button>
+      </template>
     </template>
   </div>
 </template>
@@ -267,5 +371,65 @@ onUnmounted(() => {
 
 .confetti-right {
   animation-name: confetti-fall-right;
+}
+
+/* フェーズ 1: バースト紙吹雪。画面下中央から --dx 方向へ勢いよく飛び出し、
+   --peak-y（負値）まで駆け上がった後、重力に負けて --fall-y（正値）まで落下する */
+@keyframes burst-shoot {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+
+  45% {
+    transform: translate(calc(var(--dx) * 0.7), var(--peak-y)) rotate(calc(var(--rot) * 0.5));
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(var(--dx), var(--fall-y)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+.burst-piece {
+  animation-name: burst-shoot;
+  animation-timing-function: cubic-bezier(0.15, 0.6, 0.35, 1);
+  animation-fill-mode: forwards;
+}
+
+/* フェーズ 1: 「おめでとう！」のフェード + スケールイン */
+@keyframes celebration-text-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.celebration-text-in {
+  animation: celebration-text-in 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+
+.text-outline {
+  -webkit-text-stroke: 6px white;
+  paint-order: stroke fill;
+}
+
+.celebration-fade-enter-active {
+  transition: opacity 0.25s ease-out;
+}
+
+.celebration-fade-leave-active {
+  transition: opacity 0.4s ease-in;
+}
+
+.celebration-fade-enter-from,
+.celebration-fade-leave-to {
+  opacity: 0;
 }
 </style>
