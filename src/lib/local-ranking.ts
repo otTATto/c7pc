@@ -41,9 +41,14 @@ const TARGET_MS = 7777;
 
 /** ローカルストアから今日のランキングを算出する（get_today_ranking のブラウザ版フォールバック） */
 export function getLocalTodayRanking(resultId: number): RankingData {
-  const today = todayKey();
+  // 日付またぎ対策: 「今日」ではなく自分の結果の記録日を基準にする
+  const mineResult = results.find((r) => r.id === resultId);
+  if (!mineResult) {
+    throw new Error('指定された結果が見つかりませんでした');
+  }
+  const targetDate = mineResult.recordedDate;
   const ordered = results
-    .filter((r) => r.recordedDate === today)
+    .filter((r) => r.recordedDate === targetDate)
     .slice()
     .sort((a, b) => {
       const diff = Math.abs(a.stoppedMs - TARGET_MS) - Math.abs(b.stoppedMs - TARGET_MS);

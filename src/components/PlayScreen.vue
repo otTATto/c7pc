@@ -57,8 +57,9 @@ function stopTimer() {
     });
   } else {
     updateDisplay();
-    const elapsedMs = performance.now() - startTime;
-    const resultId = saveLocalResult(Math.max(0, Math.floor(elapsedMs)));
+    // 保存値と表示値の丸めを揃えるため、floor したミリ秒に一本化する
+    const elapsedMs = Math.max(0, Math.floor(performance.now() - startTime));
+    const resultId = saveLocalResult(elapsedMs);
     emit('stop', elapsedMs, resultId);
   }
 }

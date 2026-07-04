@@ -54,19 +54,28 @@ pub fn save_result(db_path: &str, stopped_ms: u64) -> rusqlite::Result<i64> {
     Ok(conn.last_insert_rowid())
 }
 
-/// 今日（ローカル日付）の全結果を対象に、指定した `result_id` の順位を含む
+/// 指定した `result_id` の記録日の全結果を対象に、その順位を含む
 /// ランキングデータを取得する
 ///
+/// 「今日」を現在時刻から求めると、23:59 に保存して 0:00 過ぎに画面遷移した場合に
+/// 自分の結果が見つからなくなるため、`result_id` の `recorded_date` を基準にする。
 /// 順位付けは `|stopped_ms - 7777|` の昇順、同値の場合は `id` の昇順とする。
 ///
 /// # Errors
-/// DB 接続・クエリに失敗した場合、または `result_id` が今日の結果の中に
-/// 見つからない場合にエラーを返す。
+/// DB 接続・クエリに失敗した場合、または `result_id` の行が存在しない場合に
+/// エラーを返す。
 pub fn query_today_ranking(db_path: &str, result_id: i64) -> Result<RankingData, String> {
     const TARGET_MS: i64 = 7777;
 
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
-    let today = Local::now().format("%Y-%m-%d").to_string();
+
+    let target_date: String = conn
+        .query_row(
+            "SELECT recorded_date FROM results WHERE id = ?1",
+            params![result_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| "指定された結果が見つかりませんでした".to_string())?;
 
     let mut stmt = conn
         .prepare(
@@ -77,7 +86,7 @@ pub fn query_today_ranking(db_path: &str, result_id: i64) -> Result<RankingData,
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
-        .query_map(params![today, TARGET_MS], |row| {
+        .query_map(params![target_date, TARGET_MS], |row| {
             Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
         })
         .map_err(|e| e.to_string())?;

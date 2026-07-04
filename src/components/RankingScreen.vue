@@ -36,7 +36,8 @@ const rows = computed<Row[]>(() => {
 
   const result: Row[] = top.map((entry) => ({ kind: 'entry', entry }) as const);
 
-  const hasGapAboveMine = mine.rank - 1 > 10 + 1;
+  // 自分の 1 つ上(mine.rank - 1)が top 10 に含まれない = 隠れた行があるとき ⋮ を出す
+  const hasGapAboveMine = mine.rank - 1 > 10;
   if (hasGapAboveMine) {
     result.push({ kind: 'ellipsis', key: 'upper' });
   }
