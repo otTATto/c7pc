@@ -21,6 +21,7 @@ type Row = { kind: 'entry'; entry: RankingEntry } | { kind: 'ellipsis'; key: 'up
 
 // 表示行を組み立てる:
 // - 自分が 1〜10 位: top（最大 10 行）をそのまま表示
+//   - 総件数が 10 件を超える場合、10 位より下に隠れた行があることを示す下の ⋮ を追加する
 // - 自分が 11 位以下: 上位 10 行 + (必要なら)上の ⋮ + 自分の行 + (必要なら)下の ⋮
 //   - 自分が 11 位ちょうどの場合、上位 10 行のすぐ下が自分なので上の ⋮ は省く
 //   - 自分が最下位（総件数と同順位）の場合、下に隠れている行が無いので下の ⋮ は省く
@@ -31,7 +32,11 @@ const rows = computed<Row[]>(() => {
   const { top, mine, total } = data;
 
   if (mine.rank <= 10) {
-    return top.map((entry) => ({ kind: 'entry', entry }) as const);
+    const topRows: Row[] = top.map((entry) => ({ kind: 'entry', entry }) as const);
+    if (total > 10) {
+      topRows.push({ kind: 'ellipsis', key: 'lower' });
+    }
+    return topRows;
   }
 
   const result: Row[] = top.map((entry) => ({ kind: 'entry', entry }) as const);
