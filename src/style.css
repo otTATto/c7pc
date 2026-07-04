@@ -53,4 +53,7 @@
   --color-sub-yello: rgb(191 135 58);
   --color-salmon: salmon;
   --color-stop-red: rgb(250 114 114);
+  --color-medal-gold: rgb(212 175 55);
+  --color-medal-silver: rgb(168 173 180);
+  --color-medal-bronze: rgb(176 118 63);
 }
